@@ -1,10 +1,4 @@
 #Requires -Version 5.1
-param(
-    [ValidateSet("current", "previous")]
-    [string]$Cert = "current",
-    [string]$BaseUrl = "https://localhost:5001"
-)
-
 $ErrorActionPreference = "Stop"
 
 $RootDir = Split-Path -Parent $PSScriptRoot
@@ -20,6 +14,10 @@ if (-not (Test-Path $ClientPfx)) {
     & (Join-Path $PSScriptRoot "generate-certs.ps1")
 }
 
-Write-Host "Calling API with client cert '$Cert' ..."
+Write-Host "Running mTLS HTTP tests against a live API (start .\scripts\Start-Api.ps1 first) ..."
 Set-Location $RootDir
-dotnet run --project $Project -- $Cert $BaseUrl
+dotnet test $Project --no-restore
+if ($LASTEXITCODE -ne 0) {
+    # restore+test if packages missing
+    dotnet test $Project
+}

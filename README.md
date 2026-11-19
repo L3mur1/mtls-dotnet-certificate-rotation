@@ -1,7 +1,7 @@
 # mtls-dotnet-certificate-rotation
 
 Server-side mTLS example in .NET: accepting two client certificates
-during rotation, plus a small HTTP client to exercise the API.
+during rotation, plus an xUnit project that calls the API over real HTTPS.
 
 Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta w API](LINK)
 
@@ -14,12 +14,13 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 - Rejecting certificates that are missing from that set or expired
 - A sample business endpoint (`GET /invoices`) protected by mTLS
 - An mTLS maintenance endpoint (`GET /mtls/check`) with fingerprint and expiry
-- A console client that calls the API over HTTPS with a client certificate
+- Live HTTP tests (`MtlsRotationClient`) using current and previous client certificates
 
 ## What this does not show
 
 - Issuing certificates for clients (CSR, signing). That is described in the article only.
 - Authorization: a certificate identifies the client, it does not carry permissions.
+- In-process `WebApplicationFactory` mTLS (TestServer has no real TLS client-certificate handshake).
 
 ## Requirements
 
@@ -36,18 +37,19 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
    .\scripts\generate-certs.ps1
    ```
 
-2. Start the API:
+2. Start the API (terminal 1):
 
    ```powershell
    .\scripts\Start-Api.ps1
    ```
 
-3. In another terminal, call with the current or previous client cert:
+3. Run the HTTP tests (terminal 2):
 
    ```powershell
-   .\scripts\Start-Client.ps1 -Cert current
-   .\scripts\Start-Client.ps1 -Cert previous
+   .\scripts\Start-Client.ps1
    ```
+
+   Or: `dotnet test src/MtlsRotationClient/MtlsRotationClient.csproj`
 
 ## Certificates
 
@@ -57,7 +59,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 | `MtlsRotationServer/Resources/` | `ca.crt`, `client-current.crt`, `client-previous.crt` |
 | `MtlsRotationClient/Resources/` | `client-current.pfx`, `client-previous.pfx` |
 
-Copied to build output (`PreserveNewest`). The apps load them from `AppContext.BaseDirectory/Resources`.  
+Copied to build output (`PreserveNewest`). Tests load them from `AppContext.BaseDirectory/Resources`.  
 Client PFX password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
 
 Both client certs use CN `acme-payments` (same `ClientId`).
@@ -66,7 +68,7 @@ Both client certs use CN `acme-payments` (same `ClientId`).
 
 - [`src/MtlsRotation.slnx`](src/MtlsRotation.slnx) — solution
 - [`src/MtlsRotationServer/`](src/MtlsRotationServer/) — API (Kestrel mTLS)
-- [`src/MtlsRotationClient/`](src/MtlsRotationClient/) — HTTP test client
+- [`src/MtlsRotationClient/`](src/MtlsRotationClient/) — xUnit HTTP tests (live API)
 - [`scripts/generate-certs.ps1`](scripts/generate-certs.ps1) — generates and copies client certs into both `Resources/` folders
 - [`scripts/Start-Api.ps1`](scripts/Start-Api.ps1) / [`scripts/Start-Client.ps1`](scripts/Start-Client.ps1)
 
