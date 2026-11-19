@@ -1,0 +1,15 @@
+bin/
+obj/
+certs/
+artifacts/
+*.user
+.vs/
+.idea/
+*.pfx
+*.key
+*.csr
+*.srl
+*.crt
+*.ext
+scripts/SmokeTest/
+**/Resources/fingerprints.txt

@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="MtlsRotationServer/MtlsRotationServer.csproj" />
+    <Project Path="MtlsRotationClient/MtlsRotationClient.csproj" />
+  </Folder>
+</Solution>

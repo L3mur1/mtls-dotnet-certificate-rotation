@@ -1,18 +1,20 @@
 # mtls-dotnet-certificate-rotation
 
 Server-side mTLS example in .NET: accepting two client certificates
-during rotation, with expiry warnings and a health check.
+during rotation, plus a small HTTP client to exercise the API.
 
 Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta w API](LINK)
 
 ## What this shows
 
+- HTTPS with the ASP.NET / Visual Studio development certificate
 - Requiring a client certificate in Kestrel
-- A certificate registry (client, SHA-256 fingerprint, status, expiry)
-- Accepting two certificates of the same client at once (active + grace period)
-- Rejecting revoked and expired certificates
-- Logging a warning when a certificate expires soon
-- A health check endpoint that reports which certificate the server saw
+- Trusting clients via public `client-*.crt` files (fingerprint + CN + expiry from the cert)
+- Accepting two certificates of the same client at once (rotation / grace)
+- Rejecting certificates that are missing from that set or expired
+- A sample business endpoint (`GET /invoices`) protected by mTLS
+- An mTLS maintenance endpoint (`GET /mtls/check`) with fingerprint and expiry
+- A console client that calls the API over HTTPS with a client certificate
 
 ## What this does not show
 
@@ -21,29 +23,52 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 
 ## Requirements
 
-- .NET SDK (version)
-- OpenSSL (to generate test certificates)
+- .NET SDK 11
+- OpenSSL on PATH
+- Windows + PowerShell
+- Trusted ASP.NET HTTPS dev cert: `dotnet dev-certs https --trust`
 
-## Running locally
+## Run locally
 
-1. Generate a test CA and client certificates: `./scripts/generate-certs.sh`
-2. Start the API: `dotnet run`
-3. Call it with a client certificate:
-   `curl --cert certs/client-new.crt --key certs/client-new.key https://localhost:5001/mtls/check`
+1. Generate client certificates (writes into both projects' `Resources/`):
 
-## Scenarios to try
+   ```powershell
+   .\scripts\generate-certs.ps1
+   ```
 
-| Certificate | Expected result |
+2. Start the API:
+
+   ```powershell
+   .\scripts\Start-Api.ps1
+   ```
+
+3. In another terminal, call with the current or previous client cert:
+
+   ```powershell
+   .\scripts\Start-Client.ps1 -Cert current
+   .\scripts\Start-Client.ps1 -Cert previous
+   ```
+
+## Certificates
+
+| Location | Files |
 |---|---|
-| active | accepted |
-| in grace period | accepted |
-| revoked | rejected |
-| expiring soon | accepted, warning in logs |
-| unknown | connection refused |
+| (machine) | ASP.NET development certificate — API HTTPS |
+| `MtlsRotationServer/Resources/` | `ca.crt`, `client-current.crt`, `client-previous.crt` |
+| `MtlsRotationClient/Resources/` | `client-current.pfx`, `client-previous.pfx` |
+
+Copied to build output (`PreserveNewest`). The apps load them from `AppContext.BaseDirectory/Resources`.  
+Client PFX password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
+
+Both client certs use CN `acme-payments` (same `ClientId`).
 
 ## Project structure
 
-Short list of key files (registry, validation, health check).
+- [`src/MtlsRotation.slnx`](src/MtlsRotation.slnx) — solution
+- [`src/MtlsRotationServer/`](src/MtlsRotationServer/) — API (Kestrel mTLS)
+- [`src/MtlsRotationClient/`](src/MtlsRotationClient/) — HTTP test client
+- [`scripts/generate-certs.ps1`](scripts/generate-certs.ps1) — generates and copies client certs into both `Resources/` folders
+- [`scripts/Start-Api.ps1`](scripts/Start-Api.ps1) / [`scripts/Start-Client.ps1`](scripts/Start-Client.ps1)
 
 ## License
 
