@@ -13,3 +13,4 @@ artifacts/
 *.ext
 scripts/SmokeTest/
 **/Resources/fingerprints.txt
+*.received.*

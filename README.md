@@ -14,7 +14,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 - Rejecting certificates that are missing from that set or expired
 - A sample business endpoint (`GET /invoices`) protected by mTLS
 - An mTLS maintenance endpoint (`GET /mtls/check`) with fingerprint and expiry
-- Live HTTP tests (`MtlsRotationClient`) using current and previous client certificates
+- Live HTTP tests (`MtlsRotationClient`) using current and previous client certificates (Verify snapshots)
 
 ## What this does not show
 
@@ -49,7 +49,9 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
    .\scripts\Start-Client.ps1
    ```
 
-   Or: `dotnet test src/MtlsRotationClient/MtlsRotationClient.csproj`
+   Or: `dotnet test --project src/MtlsRotationClient/MtlsRotationClient.csproj`
+
+   First-time / refreshed snapshots: `$env:VERIFY_AUTO=1` (requires `global.json` MTP runner).
 
 ## Certificates
 

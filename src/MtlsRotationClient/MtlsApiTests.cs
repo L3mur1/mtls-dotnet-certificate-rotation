@@ -1,28 +1,20 @@
-using System.Net;
-using System.Text.Json.Serialization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace MtlsRotationClient;
 
 public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTestFixture>
 {
+    private static readonly JsonSerializerOptions PrettyJson = new() { WriteIndented = true };
+
     [Fact]
     public async Task Api_rejects_request_without_client_certificate()
     {
+        // Arrange
         using var client = fixture.CreateBasicClient();
 
-        try
-        {
-            using var response = await client.GetAsync("/invoices");
-            Assert.True(
-                response.StatusCode is HttpStatusCode.BadRequest
-                    or HttpStatusCode.Unauthorized
-                    or HttpStatusCode.Forbidden,
-                $"Expected auth failure but got {(int)response.StatusCode}");
-        }
-        catch (HttpRequestException)
-        {
-            // Kestrel may abort the TLS handshake when a client certificate is required.
-        }
+        // Act && Assert
+        await ThrowsTask(() => client.GetAsync("/invoices", TestContext.Current.CancellationToken));
     }
 
     [Theory]
@@ -30,17 +22,20 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
     [InlineData("client-previous.pfx")]
     public async Task Invoices_accepts_trusted_client_certificate(string pfxFileName)
     {
+        // Arrange
         using var client = fixture.CreateMtlsClient(pfxFileName);
 
-        using var response = await client.GetAsync("/invoices");
-        var body = await response.Content.ReadAsStringAsync();
+        // Act
+        using var response = await client.GetAsync("/invoices", TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        Assert.True(response.IsSuccessStatusCode, $"Expected OK but got {(int)response.StatusCode}: {body}");
-        var payload = await response.Content.ReadFromJsonAsync<InvoicesResponse>();
-        Assert.NotNull(payload);
-        Assert.Equal("acme-payments", payload.ClientId);
-        Assert.NotNull(payload.Invoices);
-        Assert.NotEmpty(payload.Invoices);
+        // Assert
+        await Verify(new
+        {
+            statusCode = (int)response.StatusCode,
+            body = FormatJson(body)
+        })
+            .UseParameters(pfxFileName);
     }
 
     [Theory]
@@ -48,37 +43,38 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
     [InlineData("client-previous.pfx")]
     public async Task MtlsCheck_reports_client_identity(string pfxFileName)
     {
+        // Arrange
         using var client = fixture.CreateMtlsClient(pfxFileName);
 
-        using var response = await client.GetAsync("/mtls/check");
-        var body = await response.Content.ReadAsStringAsync();
+        // Act
+        using var response = await client.GetAsync("/mtls/check", TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        Assert.True(response.IsSuccessStatusCode, $"Expected OK but got {(int)response.StatusCode}: {body}");
-        var payload = await response.Content.ReadFromJsonAsync<MtlsCheckResponse>();
-        Assert.NotNull(payload);
-        Assert.Equal("acme-payments", payload.ClientId);
-        Assert.False(string.IsNullOrWhiteSpace(payload.FingerprintSha256));
-        Assert.True(payload.NotAfter > DateTimeOffset.UtcNow);
+        // Assert
+        await Verify(new
+        {
+            statusCode = (int)response.StatusCode,
+            body = FormatJson(body, scrub: ["fingerprintSha256", "notAfter"])
+        })
+            .UseParameters(pfxFileName);
     }
 
-    private sealed class InvoicesResponse
+    private static string FormatJson(string json, string[]? scrub = null)
     {
-        [JsonPropertyName("clientId")]
-        public string? ClientId { get; set; }
+        var node = JsonNode.Parse(json)
+            ?? throw new InvalidOperationException("Response body was not valid JSON.");
 
-        [JsonPropertyName("invoices")]
-        public object[]? Invoices { get; set; }
-    }
+        if (scrub is not null && node is JsonObject obj)
+        {
+            foreach (var name in scrub)
+            {
+                if (obj.ContainsKey(name))
+                {
+                    obj[name] = "{Scrubbed}";
+                }
+            }
+        }
 
-    private sealed class MtlsCheckResponse
-    {
-        [JsonPropertyName("clientId")]
-        public string? ClientId { get; set; }
-
-        [JsonPropertyName("fingerprintSha256")]
-        public string? FingerprintSha256 { get; set; }
-
-        [JsonPropertyName("notAfter")]
-        public DateTimeOffset NotAfter { get; set; }
+        return node.ToJsonString(PrettyJson);
     }
 }
