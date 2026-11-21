@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
-using MtlsRotationServer.Certificates;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 
@@ -18,46 +17,81 @@ var caPath = Path.Combine(certsDir, "ca.crt");
 if (!File.Exists(caPath))
 {
     throw new InvalidOperationException(
-        "Demo CA certificate is missing. Run .\\scripts\\generate-certs.ps1 first " +
+        "Demo CA certificate is missing in configuration. Run .\\scripts\\generate-certs.ps1 first " +
         $"(expected: {caPath}).");
 }
 
-var clientCertificatePaths = Directory.GetFiles(certsDir, "client-*.crt");
-if (clientCertificatePaths.Length == 0)
+var configuredCACert = X509CertificateLoader.LoadCertificateFromFile(caPath);
+
+if (configuredCACert.NotAfter < DateTimeOffset.UtcNow)
 {
     throw new InvalidOperationException(
-        "No client certificates were found. Run .\\scripts\\generate-certs.ps1 first " +
-        $"(expected: {certsDir}\\client-*.crt).");
+        "Demo CA certificate in configuration has expired. Run .\\scripts\\generate-certs.ps1 to regenerate the certs.");
 }
 
-var trustedClientCertificates = new TrustedClientCertificates(clientCertificatePaths);
-builder.Services.AddSingleton(trustedClientCertificates);
-builder.Services.AddSingleton<CertificateValidation>();
+var trustedConfiguredClientCertificatesThumbprints = Directory.GetFiles(certsDir, "client-*.crt")
+    .Select(X509CertificateLoader.LoadCertificateFromFile)
+    .Select(c => c.Thumbprint)
+    .ToArray();
+
+if (trustedConfiguredClientCertificatesThumbprints.Length == 0)
+{
+    throw new InvalidOperationException(
+        "No trusted client certificates thumbprints were found in configuration. Run .\\scripts\\generate-certs.ps1 first " +
+        $"(expected: {certsDir}\\client-*.crt).");
+}
 
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ConfigureHttpsDefaults(httpsOptions =>
     {
+        // Require client certificate for all HTTPS endpoints in the API (mTLS).
+        // This ignores [Authorize] attributes on endpoints:
+        // Kestrel will reject the connection if the client doesn't present a valid certificate.
         httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
-        // Project policy: fingerprint on allowlist + NotAfter in the future.
-        // Chain trust is enforced in Certificate Authentication below.
-        httpsOptions.ClientCertificateValidation = (certificate, _, _) =>
+
+        // TLS gate: chain → demo CA, then project policy (fingerprint + not expired).
+        httpsOptions.ClientCertificateValidation = (certificateFromRequest, _, _) =>
         {
-            var entry = trustedClientCertificates.Find(certificate);
+            if (certificateFromRequest is not X509Certificate2 clientCertFromRequest)
+            {
+                clientCertFromRequest = X509CertificateLoader.LoadCertificate(certificateFromRequest.GetRawCertData());
+            }
+
+            if (clientCertFromRequest is null)
+            {
+                return false;
+            }
+
+            // Validate the client certificate chain against the demo CA (trust anchor).
+            using var chain = new X509Chain();
+            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            chain.ChainPolicy.CustomTrustStore.Add(configuredCACert);
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+
+            if (!chain.Build(clientCertFromRequest))
+            {
+                return false;
+            }
+
+            var entry = trustedConfiguredClientCertificatesThumbprints.Find(clientCertFromRequest);
             return entry is not null && entry.NotAfter > DateTimeOffset.UtcNow;
         };
     });
 });
 
+// Map the client certificate into ASP.NET identity (HttpContext.User / claims)
+// so endpoints can read clientId, fingerprint, etc. from the request context.
 builder.Services
     .AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
     .AddCertificate(options =>
     {
         options.AllowedCertificateTypes = CertificateTypes.All;
         options.RevocationMode = X509RevocationMode.NoCheck;
-        // Require the client cert chain to be trusted via our demo CA.
+        // Handler still needs our CA in its trust store to accept the cert when building the principal
+        // (it re-checks chain internally; the real connection gate is Kestrel above).
         options.ChainTrustValidationMode = X509ChainTrustMode.CustomRootTrust;
-        options.CustomTrustStore.Add(X509CertificateLoader.LoadCertificateFromFile(caPath));
+        options.CustomTrustStore.Add(configuredCACert);
 
         options.Events = new CertificateAuthenticationEvents
         {
@@ -71,6 +105,7 @@ builder.Services
                 }
 
                 var fingerprint = CertificateValidation.GetFingerprint(context.ClientCertificate);
+                // Puts cert-derived claims onto the principal available as ClaimsPrincipal in endpoints.
                 context.Principal = validation.CreatePrincipal(entry, fingerprint);
                 context.Success();
                 return Task.CompletedTask;
@@ -100,6 +135,8 @@ app.MapGet("/invoices", (ClaimsPrincipal user) =>
             }
         });
     })
+    // RequireAuthorization: endpoint needs the authenticated principal (cert info in User / context).
+    // mTLS itself is already required for the whole API by Kestrel above.
     .RequireAuthorization();
 
 app.MapGet("/mtls/check", (ClaimsPrincipal user) =>
@@ -120,6 +157,7 @@ app.MapGet("/mtls/check", (ClaimsPrincipal user) =>
             notAfter
         });
     })
+    // Same as /invoices: use cert-derived claims from the request context.
     .RequireAuthorization();
 
 app.Run();
