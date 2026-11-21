@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace MtlsRotationClient;
@@ -44,6 +43,7 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
 
         // Assert — mTLS + identity; invoice payload is demo data, not under test.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
         Assert.NotNull(body);
         Assert.Equal("acme-payments", body.ClientId);
         Assert.NotEmpty(body.Invoices);
