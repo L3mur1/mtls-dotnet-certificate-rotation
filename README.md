@@ -9,11 +9,11 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 
 - HTTPS with the ASP.NET / Visual Studio development certificate
 - Requiring a client certificate in Kestrel
-- Trusting clients via public `client-*.crt` files (fingerprint + CN + expiry from the cert)
+- Trusting clients via public `client-*.crt` files (thumbprint allowlist + chain to demo CA)
 - Accepting two certificates of the same client at once (rotation / grace)
-- Rejecting certificates that are missing from that set or expired
+- Rejecting certificates missing from that set or failing chain (including expiry / NotTimeValid), with warning logs
 - A sample business endpoint (`GET /invoices`) protected by mTLS
-- An mTLS maintenance endpoint (`GET /mtls/check`) with fingerprint and expiry
+- An mTLS maintenance endpoint (`GET /mtls/check`) with thumbprint and expiry from the presented cert
 - Live HTTP tests (`MtlsRotationClient`) using current and previous client certificates (Verify snapshots)
 
 ## What this does not show
@@ -65,7 +65,7 @@ Copied to build output (`PreserveNewest`) as `Resources/Certificates/`. Apps loa
 
 Server-side `.crt` files are **public** certificates (public key + metadata only — no private key, no password):
 - `ca.crt` — trust anchor; the client certificate chain must be trusted via this CA
-- `client-*.crt` — allowlist of accepted clients (thumbprint match; expired presented certs are rejected with a warning log)
+- `client-*.crt` — allowlist of accepted clients (thumbprint match; expiry via chain validation / NotTimeValid)
 
 Client-side `.pfx` files include the **private** key. Password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
 
