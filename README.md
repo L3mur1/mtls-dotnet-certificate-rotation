@@ -9,11 +9,10 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 
 - HTTPS with the ASP.NET / Visual Studio development certificate
 - Requiring a client certificate in Kestrel
-- Trusting clients via public `client-*.crt` files (thumbprint allowlist + chain to demo CA)
-- Accepting two certificates of the same client at once (rotation / grace)
-- Rejecting certificates missing from that set or failing chain (including expiry / NotTimeValid), with warning logs
-- A sample business endpoint (`GET /invoices`) protected by mTLS
-- An mTLS maintenance endpoint (`GET /mtls/check`) with thumbprint and expiry from the presented cert
+- Trusting any number of public client `.crt` files + any number of CA `.crt` files (thumbprint allowlist + CustomRootTrust)
+- Demo ships two client certs and two CAs (client + CA rotation / grace); expired files skipped at startup with a warning
+- Rejecting certificates missing from the allowlist or failing chain (including NotTimeValid), with warning logs
+- MVC controllers for `GET /invoices` and `GET /mtls/check` (cert claims on `User`)
 - Live HTTP tests (`MtlsRotationClient`) using current and previous client certificates (Verify snapshots)
 
 ## What this does not show
@@ -31,7 +30,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 
 ## Run locally
 
-1. Generate client certificates (writes into both projects' `Resources/Certificates/`):
+1. Generate certificates (writes into `Resources/CACerts` + `Resources/ClientCerts`):
 
    ```powershell
    .\scripts\generate-certs.ps1
@@ -58,14 +57,21 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 | Location | Files |
 |---|---|
 | (machine) | ASP.NET development certificate — API HTTPS |
-| `MtlsRotationServer/Resources/Certificates/` | `ca.crt`, `client-current.crt`, `client-previous.crt` |
-| `MtlsRotationClient/Resources/Certificates/` | `client-current.pfx`, `client-previous.pfx` |
+| `MtlsRotationServer/Resources/CACerts/` | any `*.crt` trust anchors (demo: `ca-current.crt`, `ca-previous.crt`) |
+| `MtlsRotationServer/Resources/ClientCerts/` | any `*.crt` allowlist entries (demo: `client-current.crt`, `client-previous.crt`) |
+| `MtlsRotationClient/Resources/ClientCerts/` | client `*.pfx` (demo: `client-current.pfx`, `client-previous.pfx`) |
 
-Copied to build output (`PreserveNewest`) as `Resources/Certificates/`. Apps load them from `AppContext.BaseDirectory/Resources/Certificates`.
+Copied to build output (`PreserveNewest`). Apps load them from `AppContext.BaseDirectory/Resources/...`.
 
-Server-side `.crt` files are **public** certificates (public key + metadata only — no private key, no password):
-- `ca.crt` — trust anchor; the client certificate chain must be trusted via this CA
-- `client-*.crt` — allowlist of accepted clients (thumbprint match; expiry via chain validation / NotTimeValid)
+Naming: **ClientCerts** (not “request certs”) — these are client identity certificates used in mTLS. “Request” usually means a CSR.
+
+Server-side `.crt` files are **public** (public key + metadata only — no private key, no password):
+- `CACerts/*.crt` — trust anchors (`CustomRootTrust`); chain may end at **any** configured CA. Any count (demo uses two for CA rotation). Project choice.
+- `ClientCerts/*.crt` — allowlist by thumbprint. Any count (demo uses two for client cert rotation).
+
+At startup, **expired** files in either folder are **skipped** with a warning. If none remain usable, the API fails fast.
+
+In this demo `client-current` is signed by `ca-current`, `client-previous` by `ca-previous`.
 
 Client-side `.pfx` files include the **private** key. Password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
 
@@ -76,7 +82,7 @@ Both client certs use CN `acme-payments` (same `ClientId`).
 - [`src/MtlsRotation.slnx`](src/MtlsRotation.slnx) — solution
 - [`src/MtlsRotationServer/`](src/MtlsRotationServer/) — API (Kestrel mTLS)
 - [`src/MtlsRotationClient/`](src/MtlsRotationClient/) — xUnit HTTP tests (live API)
-- [`scripts/generate-certs.ps1`](scripts/generate-certs.ps1) — generates and copies client certs into both `Resources/Certificates/` folders
+- [`scripts/generate-certs.ps1`](scripts/generate-certs.ps1) — generates CAs + client certs into `Resources/CACerts` and `Resources/ClientCerts`
 - [`scripts/Start-Api.ps1`](scripts/Start-Api.ps1) / [`scripts/Start-Client.ps1`](scripts/Start-Client.ps1)
 
 ## License

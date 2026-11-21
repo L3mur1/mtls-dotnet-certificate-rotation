@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 
 $RootDir = Split-Path -Parent $PSScriptRoot
 $Project = Join-Path $RootDir "src\MtlsRotationClient\MtlsRotationClient.csproj"
-$ClientPfx = Join-Path $RootDir "src\MtlsRotationClient\Resources\Certificates\client-current.pfx"
+$ClientPfx = Join-Path $RootDir "src\MtlsRotationClient\Resources\ClientCerts\client-current.pfx"
 
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     Write-Error ".NET SDK is required and must be on PATH."

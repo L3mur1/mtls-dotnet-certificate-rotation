@@ -11,8 +11,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Resources\Certificates\" />
-    <None Update="Resources\Certificates\*">
+    <Folder Include="Resources\CACerts\" />
+    <Folder Include="Resources\ClientCerts\" />
+    <None Update="Resources\CACerts\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\ClientCerts\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
