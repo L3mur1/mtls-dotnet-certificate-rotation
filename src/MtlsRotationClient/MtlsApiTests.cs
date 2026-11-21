@@ -1,13 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace MtlsRotationClient;
 
 public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTestFixture>
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-
     [Fact]
     public async Task Api_rejects_request_without_client_certificate()
     {
@@ -40,13 +38,14 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
 
         // Act
         using var response = await client.GetAsync("/invoices", TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadFromJsonAsync<InvoicesResponse>(JsonOptions, TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadFromJsonAsync<JsonNode>(TestContext.Current.CancellationToken);
 
         // Assert — mTLS + identity; invoice payload is demo data, not under test.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
-        Assert.Equal("acme-payments", body.ClientId);
-        Assert.NotEmpty(body.Invoices);
+
+        Assert.Equal("acme-payments", (string?)body["clientId"]);
+        Assert.True(body["invoices"] is JsonArray { Count: > 0 });
     }
 
     [Theory]
@@ -60,20 +59,19 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
 
         // Act
         using var response = await client.GetAsync("/mtls/check", TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadFromJsonAsync<MtlsCheckResponse>(JsonOptions, TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadFromJsonAsync<JsonNode>(TestContext.Current.CancellationToken);
 
         // Assert — identity and thumbprint match the public cert inside the PFX we presented.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
-        Assert.Equal("acme-payments", body.ClientId);
-        Assert.Equal(expectedCert.Thumbprint, body.Thumbprint, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal("acme-payments", (string?)body["clientId"]);
+        Assert.Equal(expectedCert.Thumbprint, (string?)body["thumbprint"], StringComparer.OrdinalIgnoreCase);
+
+        var notAfter = body["notAfter"]!.GetValue<DateTimeOffset>();
         Assert.Equal(
             DateTime.SpecifyKind(expectedCert.NotAfter, DateTimeKind.Local).ToUniversalTime(),
-            body.NotAfter.UtcDateTime,
+            notAfter.UtcDateTime,
             TimeSpan.FromSeconds(1));
     }
-
-    private sealed record InvoicesResponse(string ClientId, IReadOnlyList<JsonElement> Invoices);
-
-    private sealed record MtlsCheckResponse(string ClientId, string Thumbprint, DateTimeOffset NotAfter);
 }
