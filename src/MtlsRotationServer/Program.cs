@@ -6,19 +6,21 @@ using MtlsRotationServer.Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Copied to output via PreserveNewest on Resources/Certificates/*
+// Certificates are copied during build after generation by scripts/generate-certs.ps1.
+// The CA (Certificate Authority) certificate is used to validate the client certificates.
+// Additionaly the client identity is decided by the trusted (whitelisted) client-*.crt files.
 var certsDir = Path.Combine(AppContext.BaseDirectory, "Resources", "Certificates");
-var caPath = Path.Combine(certsDir, "ca.crt");
 
+var caPath = Path.Combine(certsDir, "ca.crt");
 if (!File.Exists(caPath))
 {
     throw new InvalidOperationException(
-        "Demo CA is missing. Run .\\scripts\\generate-certs.ps1 first " +
+        "Demo CA certificate is missing. Run .\\scripts\\generate-certs.ps1 first " +
         $"(expected: {caPath}).");
 }
 
-var trustedClients = new TrustedClientCertificates(certsDir);
-builder.Services.AddSingleton(trustedClients);
+var trustedClientCertificates = new TrustedClientCertificates(certsDir);
+builder.Services.AddSingleton(trustedClientCertificates);
 builder.Services.AddSingleton<CertificateValidation>();
 
 builder.WebHost.ConfigureKestrel(options =>
@@ -29,7 +31,7 @@ builder.WebHost.ConfigureKestrel(options =>
         // Identity is decided by trusted client-*.crt files, not by chain alone.
         httpsOptions.ClientCertificateValidation = (certificate, _, _) =>
         {
-            var entry = trustedClients.Find(certificate);
+            var entry = trustedClientCertificates.Find(certificate);
             return entry is not null && entry.NotAfter > DateTimeOffset.UtcNow;
         };
     });

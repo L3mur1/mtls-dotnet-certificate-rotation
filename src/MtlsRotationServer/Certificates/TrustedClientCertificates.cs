@@ -8,11 +8,11 @@ namespace MtlsRotationServer.Certificates;
 /// </summary>
 public sealed class TrustedClientCertificates
 {
-    private readonly Dictionary<string, RegisteredCertificate> _byFingerprint;
+    private readonly Dictionary<string, RegisteredCertificate> trustedByFingerprint;
 
     public TrustedClientCertificates(string resourcesDirectory)
     {
-        _byFingerprint = new Dictionary<string, RegisteredCertificate>(StringComparer.Ordinal);
+        trustedByFingerprint = [with(StringComparer.Ordinal)];
 
         if (!Directory.Exists(resourcesDirectory))
         {
@@ -30,7 +30,7 @@ public sealed class TrustedClientCertificates
                 throw new InvalidOperationException($"Client certificate '{path}' has no CN / simple name.");
             }
 
-            _byFingerprint[fingerprint] = new RegisteredCertificate
+            trustedByFingerprint[fingerprint] = new RegisteredCertificate
             {
                 ClientId = clientId,
                 FingerprintSha256 = fingerprint,
@@ -38,7 +38,7 @@ public sealed class TrustedClientCertificates
             };
         }
 
-        if (_byFingerprint.Count == 0)
+        if (trustedByFingerprint.Count == 0)
         {
             throw new InvalidOperationException(
                 $"No client-*.crt files found in {resourcesDirectory}. Run .\\scripts\\generate-certs.ps1 first.");
@@ -49,7 +49,7 @@ public sealed class TrustedClientCertificates
         certificate.GetCertHashString(HashAlgorithmName.SHA256).ToUpperInvariant();
 
     public RegisteredCertificate? FindByFingerprint(string fingerprintSha256) =>
-        _byFingerprint.GetValueOrDefault(fingerprintSha256);
+        trustedByFingerprint.GetValueOrDefault(fingerprintSha256);
 
     public RegisteredCertificate? Find(X509Certificate2 certificate) =>
         FindByFingerprint(GetFingerprint(certificate));
