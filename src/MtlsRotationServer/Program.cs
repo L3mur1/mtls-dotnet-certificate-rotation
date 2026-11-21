@@ -39,7 +39,7 @@ builder.WebHost.ConfigureKestrel(options =>
     options.ConfigureHttpsDefaults(httpsOptions =>
     {
         httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
-        // Project policy: fingerprint on allowlist + NotAfter in the future (see comment above).
+        // Project policy: fingerprint on allowlist + NotAfter in the future.
         // Chain trust is enforced in Certificate Authentication below.
         httpsOptions.ClientCertificateValidation = (certificate, _, _) =>
         {
