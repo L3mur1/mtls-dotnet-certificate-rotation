@@ -65,7 +65,7 @@ Copied to build output (`PreserveNewest`) as `Resources/Certificates/`. Apps loa
 
 Server-side `.crt` files are **public** certificates (public key + metadata only — no private key, no password):
 - `ca.crt` — trust anchor; the client certificate chain must be trusted via this CA
-- `client-*.crt` — allowlist of accepted clients (fingerprint match)
+- `client-*.crt` — allowlist of accepted clients (thumbprint match)
 
 Client-side `.pfx` files include the **private** key. Password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
 

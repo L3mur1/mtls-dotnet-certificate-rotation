@@ -54,7 +54,7 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
         await Verify(new
         {
             statusCode = (int)response.StatusCode,
-            body = FormatJson(body, scrub: ["fingerprintSha256", "notAfter"])
+            body = FormatJson(body, scrub: ["thumbprint", "notAfter"])
         })
             .UseParameters(pfxFileName);
     }
