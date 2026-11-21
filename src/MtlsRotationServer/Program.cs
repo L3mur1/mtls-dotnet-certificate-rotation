@@ -7,7 +7,6 @@ using MtlsRotationServer.Certificates;
 var builder = WebApplication.CreateBuilder(args);
 
 // Copied to output via PreserveNewest on Resources/Certificates/*
-// HTTPS uses the ASP.NET Core / Visual Studio development certificate.
 var certsDir = Path.Combine(AppContext.BaseDirectory, "Resources", "Certificates");
 var caPath = Path.Combine(certsDir, "ca.crt");
 

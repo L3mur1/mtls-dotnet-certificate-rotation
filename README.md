@@ -31,7 +31,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 
 ## Run locally
 
-1. Generate client certificates (writes into both projects' `Resources/`):
+1. Generate client certificates (writes into both projects' `Resources/Certificates/`):
 
    ```powershell
    .\scripts\generate-certs.ps1
@@ -58,10 +58,10 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 | Location | Files |
 |---|---|
 | (machine) | ASP.NET development certificate — API HTTPS |
-| `MtlsRotationServer/Resources/` | `ca.crt`, `client-current.crt`, `client-previous.crt` |
-| `MtlsRotationClient/Resources/` | `client-current.pfx`, `client-previous.pfx` |
+| `MtlsRotationServer/Resources/Certificates/` | `ca.crt`, `client-current.crt`, `client-previous.crt` |
+| `MtlsRotationClient/Resources/Certificates/` | `client-current.pfx`, `client-previous.pfx` |
 
-Copied to build output (`PreserveNewest`). Tests load them from `AppContext.BaseDirectory/Resources`.  
+Copied to build output (`PreserveNewest`) as `Resources/Certificates/`. Apps load them from `AppContext.BaseDirectory/Resources/Certificates`.  
 Client PFX password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
 
 Both client certs use CN `acme-payments` (same `ClientId`).
@@ -71,7 +71,7 @@ Both client certs use CN `acme-payments` (same `ClientId`).
 - [`src/MtlsRotation.slnx`](src/MtlsRotation.slnx) — solution
 - [`src/MtlsRotationServer/`](src/MtlsRotationServer/) — API (Kestrel mTLS)
 - [`src/MtlsRotationClient/`](src/MtlsRotationClient/) — xUnit HTTP tests (live API)
-- [`scripts/generate-certs.ps1`](scripts/generate-certs.ps1) — generates and copies client certs into both `Resources/` folders
+- [`scripts/generate-certs.ps1`](scripts/generate-certs.ps1) — generates and copies client certs into both `Resources/Certificates/` folders
 - [`scripts/Start-Api.ps1`](scripts/Start-Api.ps1) / [`scripts/Start-Client.ps1`](scripts/Start-Client.ps1)
 
 ## License
