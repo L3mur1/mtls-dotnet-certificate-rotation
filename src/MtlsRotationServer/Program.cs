@@ -58,7 +58,6 @@ builder.WebHost.ConfigureKestrel(options =>
         httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
 
         // TLS gate: thumbprint allowlist + chain → demo CA (chain also enforces NotAfter / NotTimeValid).
-        // Log each reject reason — typical enterprise practice for mTLS diagnostics / monitoring.
         httpsOptions.ClientCertificateValidation = (certificateFromRequest, _, _) =>
         {
             if (certificateFromRequest is null)
