@@ -4,8 +4,8 @@ $ErrorActionPreference = "Stop"
 $RootDir = Split-Path -Parent $PSScriptRoot
 $ServerDir = Join-Path $RootDir "src\MtlsRotationServer"
 $ClientDir = Join-Path $RootDir "src\MtlsRotationClient"
-$ServerResources = Join-Path $ServerDir "Resources"
-$ClientResources = Join-Path $ClientDir "Resources"
+$ServerResources = Join-Path $ServerDir "Resources\Certificates"
+$ClientResources = Join-Path $ClientDir "Resources\Certificates"
 $WorkDir = Join-Path $RootDir "artifacts\cert-build"
 $Password = "changeit"
 $DaysCurrent = 825
@@ -72,8 +72,8 @@ try {
 
     $summary = @"
 HTTPS           : ASP.NET development certificate (dotnet dev-certs https --trust)
-server Resources: ca.crt, client-current.crt, client-previous.crt
-client Resources: client-current.pfx, client-previous.pfx
+server Resources/Certificates: ca.crt, client-current.crt, client-previous.crt
+client Resources/Certificates: client-current.pfx, client-previous.pfx
 client-current  : $fpCurrent  (CN=acme-payments)
 client-previous : $fpPrevious  (CN=acme-payments, rotation / grace)
 PFX password    : $Password  (MtlsRotationClient/appsettings.json)

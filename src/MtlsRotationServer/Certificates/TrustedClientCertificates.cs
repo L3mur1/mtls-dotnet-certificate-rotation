@@ -4,7 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace MtlsRotationServer.Certificates;
 
 /// <summary>
-/// Allowlist built from public client certificates in Resources (client-*.crt).
+/// Allowlist built from public client certificates in Resources/Certificates (client-*.crt).
 /// </summary>
 public sealed class TrustedClientCertificates
 {
@@ -17,7 +17,7 @@ public sealed class TrustedClientCertificates
         if (!Directory.Exists(resourcesDirectory))
         {
             throw new InvalidOperationException(
-                $"Resources directory is missing: {resourcesDirectory}. Run .\\scripts\\generate-certs.ps1 first.");
+                $"Certificates directory is missing: {resourcesDirectory}. Run .\\scripts\\generate-certs.ps1 first.");
         }
 
         foreach (var path in Directory.GetFiles(resourcesDirectory, "client-*.crt"))

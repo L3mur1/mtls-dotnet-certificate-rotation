@@ -23,7 +23,7 @@ public sealed class MtlsTestFixture : IDisposable
         Password = configuration["ClientCertificate:Password"]
             ?? throw new InvalidOperationException("ClientCertificate:Password is missing in appsettings.json.");
 
-        ResourcesDir = Path.Combine(AppContext.BaseDirectory, "Resources");
+        ResourcesDir = Path.Combine(AppContext.BaseDirectory, "Resources", "Certificates");
     }
 
     public HttpClient CreateBasicClient() => new HttpClient

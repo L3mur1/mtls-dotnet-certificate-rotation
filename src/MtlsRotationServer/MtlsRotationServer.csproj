@@ -11,8 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Resources\" />
-    <None Update="Resources\*">
+    <Folder Include="Resources\Certificates\" />
+    <None Update="Resources\Certificates\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
