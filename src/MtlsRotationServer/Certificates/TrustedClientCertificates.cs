@@ -4,24 +4,25 @@ using System.Security.Cryptography.X509Certificates;
 namespace MtlsRotationServer.Certificates;
 
 /// <summary>
-/// Allowlist built from public client certificates in Resources/Certificates (client-*.crt).
+/// Allowlist built from public client certificate files (client-*.crt).
+/// These are public certs only (no private key, no password).
 /// </summary>
 public sealed class TrustedClientCertificates
 {
-    private readonly Dictionary<string, RegisteredCertificate> trustedByFingerprint;
+    private readonly Dictionary<string, RegisteredCertificate> _trustedByFingerprint;
 
-    public TrustedClientCertificates(string resourcesDirectory)
+    public TrustedClientCertificates(IEnumerable<string> certificatePaths)
     {
-        trustedByFingerprint = [with(StringComparer.Ordinal)];
+        _trustedByFingerprint = new Dictionary<string, RegisteredCertificate>(StringComparer.Ordinal);
 
-        if (!Directory.Exists(resourcesDirectory))
+        foreach (var path in certificatePaths)
         {
-            throw new InvalidOperationException(
-                $"Certificates directory is missing: {resourcesDirectory}. Run .\\scripts\\generate-certs.ps1 first.");
-        }
+            if (!File.Exists(path))
+            {
+                throw new InvalidOperationException(
+                    $"Client certificate is missing: {path}. Run .\\scripts\\generate-certs.ps1 first.");
+            }
 
-        foreach (var path in Directory.GetFiles(resourcesDirectory, "client-*.crt"))
-        {
             using var certificate = X509CertificateLoader.LoadCertificateFromFile(path);
             var fingerprint = GetFingerprint(certificate);
             var clientId = certificate.GetNameInfo(X509NameType.SimpleName, forIssuer: false);
@@ -30,7 +31,7 @@ public sealed class TrustedClientCertificates
                 throw new InvalidOperationException($"Client certificate '{path}' has no CN / simple name.");
             }
 
-            trustedByFingerprint[fingerprint] = new RegisteredCertificate
+            _trustedByFingerprint[fingerprint] = new RegisteredCertificate
             {
                 ClientId = clientId,
                 FingerprintSha256 = fingerprint,
@@ -38,10 +39,10 @@ public sealed class TrustedClientCertificates
             };
         }
 
-        if (trustedByFingerprint.Count == 0)
+        if (_trustedByFingerprint.Count == 0)
         {
             throw new InvalidOperationException(
-                $"No client-*.crt files found in {resourcesDirectory}. Run .\\scripts\\generate-certs.ps1 first.");
+                "No client certificates were provided. Run .\\scripts\\generate-certs.ps1 first.");
         }
     }
 
@@ -49,7 +50,7 @@ public sealed class TrustedClientCertificates
         certificate.GetCertHashString(HashAlgorithmName.SHA256).ToUpperInvariant();
 
     public RegisteredCertificate? FindByFingerprint(string fingerprintSha256) =>
-        trustedByFingerprint.GetValueOrDefault(fingerprintSha256);
+        _trustedByFingerprint.GetValueOrDefault(fingerprintSha256);
 
     public RegisteredCertificate? Find(X509Certificate2 certificate) =>
         FindByFingerprint(GetFingerprint(certificate));

@@ -61,8 +61,13 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 | `MtlsRotationServer/Resources/Certificates/` | `ca.crt`, `client-current.crt`, `client-previous.crt` |
 | `MtlsRotationClient/Resources/Certificates/` | `client-current.pfx`, `client-previous.pfx` |
 
-Copied to build output (`PreserveNewest`) as `Resources/Certificates/`. Apps load them from `AppContext.BaseDirectory/Resources/Certificates`.  
-Client PFX password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
+Copied to build output (`PreserveNewest`) as `Resources/Certificates/`. Apps load them from `AppContext.BaseDirectory/Resources/Certificates`.
+
+Server-side `.crt` files are **public** certificates (public key + metadata only — no private key, no password):
+- `ca.crt` — trust anchor; the client certificate chain must be trusted via this CA
+- `client-*.crt` — allowlist of accepted clients (fingerprint match)
+
+Client-side `.pfx` files include the **private** key. Password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
 
 Both client certs use CN `acme-payments` (same `ClientId`).
 
