@@ -34,14 +34,7 @@ public sealed class MtlsTestFixture : IDisposable
 
     public HttpClient CreateMtlsClient(string pfxFileName)
     {
-        var pfxPath = Path.Combine(ResourcesDir, pfxFileName);
-        if (!File.Exists(pfxPath))
-        {
-            throw new InvalidOperationException(
-                $"Client certificate is missing: {pfxPath}. Run .\\scripts\\generate-certs.ps1 to generate it.");
-        }
-
-        var clientCert = X509CertificateLoader.LoadPkcs12FromFile(pfxPath, Password);
+        var clientCert = LoadClientCertificate(pfxFileName);
         var handler = new HttpClientHandler
         {
             ClientCertificates = { clientCert },
@@ -52,6 +45,18 @@ public sealed class MtlsTestFixture : IDisposable
             BaseAddress = new Uri(BaseUrl),
             Timeout = TimeSpan.FromSeconds(RequestTimeoutSeconds)
         };
+    }
+
+    public X509Certificate2 LoadClientCertificate(string pfxFileName)
+    {
+        var pfxPath = Path.Combine(ResourcesDir, pfxFileName);
+        if (!File.Exists(pfxPath))
+        {
+            throw new InvalidOperationException(
+                $"Client certificate is missing: {pfxPath}. Run .\\scripts\\generate-certs.ps1 to generate it.");
+        }
+
+        return X509CertificateLoader.LoadPkcs12FromFile(pfxPath, Password);
     }
 
     public void Dispose()

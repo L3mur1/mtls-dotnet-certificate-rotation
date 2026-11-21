@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace MtlsRotationClient;
@@ -19,10 +20,10 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
     }
 
     [Fact]
-    public async Task Api_rejects_untrusted_client_certificate()
+    public async Task Api_rejects_client_certificate_from_unknown_ca()
     {
         // Arrange — same CN as trusted clients, but issued by an unknown CA and not on the allowlist.
-        using var client = fixture.CreateMtlsClient("client-untrusted.pfx");
+        using var client = fixture.CreateMtlsClient("acme-payments-unknown-ca.pfx");
 
         // Act && Assert — rejected at TLS (thumbprint / chain), before HTTP.
         await Assert.ThrowsAnyAsync<HttpRequestException>(
@@ -30,8 +31,8 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
     }
 
     [Theory]
-    [InlineData("client-current.pfx")]
-    [InlineData("client-previous.pfx")]
+    [InlineData("acme-payments-current.pfx")]
+    [InlineData("acme-payments-previous.pfx")]
     public async Task Invoices_accepts_trusted_client_certificate(string pfxFileName)
     {
         // Arrange
@@ -43,30 +44,33 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
 
         // Assert — mTLS + identity; invoice payload is demo data, not under test.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
         Assert.NotNull(body);
         Assert.Equal("acme-payments", body.ClientId);
         Assert.NotEmpty(body.Invoices);
     }
 
     [Theory]
-    [InlineData("client-current.pfx")]
-    [InlineData("client-previous.pfx")]
+    [InlineData("acme-payments-current.pfx")]
+    [InlineData("acme-payments-previous.pfx")]
     public async Task MtlsCheck_reports_client_identity(string pfxFileName)
     {
         // Arrange
+        using var expectedCert = fixture.LoadClientCertificate(pfxFileName);
         using var client = fixture.CreateMtlsClient(pfxFileName);
 
         // Act
         using var response = await client.GetAsync("/mtls/check", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadFromJsonAsync<MtlsCheckResponse>(JsonOptions, TestContext.Current.CancellationToken);
 
-        // Assert
+        // Assert — identity and thumbprint match the public cert inside the PFX we presented.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
         Assert.Equal("acme-payments", body.ClientId);
-        Assert.False(string.IsNullOrWhiteSpace(body.Thumbprint));
-        Assert.True(body.NotAfter > DateTimeOffset.UtcNow);
+        Assert.Equal(expectedCert.Thumbprint, body.Thumbprint, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(
+            DateTime.SpecifyKind(expectedCert.NotAfter, DateTimeKind.Local).ToUniversalTime(),
+            body.NotAfter.UtcDateTime,
+            TimeSpan.FromSeconds(1));
     }
 
     private sealed record InvoicesResponse(string ClientId, IReadOnlyList<JsonElement> Invoices);
