@@ -18,6 +18,17 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
             () => client.GetAsync("/invoices", TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task Api_rejects_untrusted_client_certificate()
+    {
+        // Arrange — same CN as trusted clients, but issued by an unknown CA and not on the allowlist.
+        using var client = fixture.CreateMtlsClient("client-untrusted.pfx");
+
+        // Act && Assert — rejected at TLS (thumbprint / chain), before HTTP.
+        await Assert.ThrowsAnyAsync<HttpRequestException>(
+            () => client.GetAsync("/invoices", TestContext.Current.CancellationToken));
+    }
+
     [Theory]
     [InlineData("client-current.pfx")]
     [InlineData("client-previous.pfx")]

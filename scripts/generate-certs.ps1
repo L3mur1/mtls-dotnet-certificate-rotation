@@ -80,6 +80,10 @@ try {
     New-ClientCert -Name "client-previous" -Days $DaysPrevious -CommonName "acme-payments" -CaName "ca-previous"
     New-ClientCert -Name "client-current" -Days $DaysCurrent -CommonName "acme-payments" -CaName "ca-current"
 
+    # Untrusted: same CN, but unknown CA — not copied to server CACerts / ClientCerts (negative test only).
+    New-Ca -Name "ca-untrusted" -Days $DaysCurrent -CommonName "mTLS Demo CA (untrusted)"
+    New-ClientCert -Name "client-untrusted" -Days $DaysCurrent -CommonName "acme-payments" -CaName "ca-untrusted"
+
     function Get-Fingerprint {
         param([string]$CertPath)
         $line = openssl x509 -in $CertPath -noout -fingerprint -sha256
@@ -88,6 +92,7 @@ try {
 
     $fpCurrent = Get-Fingerprint client-current.crt
     $fpPrevious = Get-Fingerprint client-previous.crt
+    $fpUntrusted = Get-Fingerprint client-untrusted.crt
     $fpCaCurrent = Get-Fingerprint ca-current.crt
     $fpCaPrevious = Get-Fingerprint ca-previous.crt
 
@@ -96,17 +101,18 @@ try {
     Copy-Item client-current.crt, client-previous.crt -Destination $ServerClientCerts
 
     Write-Host "Copying client Resources..."
-    Copy-Item client-current.pfx, client-previous.pfx -Destination $ClientClientCerts
+    Copy-Item client-current.pfx, client-previous.pfx, client-untrusted.pfx -Destination $ClientClientCerts
 
     $summary = @"
 HTTPS           : ASP.NET development certificate (dotnet dev-certs https --trust)
 server Resources/CACerts     : ca-current.crt, ca-previous.crt
 server Resources/ClientCerts : client-current.crt, client-previous.crt
-client Resources/ClientCerts : client-current.pfx, client-previous.pfx
+client Resources/ClientCerts : client-current.pfx, client-previous.pfx, client-untrusted.pfx
 ca-current      : $fpCaCurrent  (signs client-current)
 ca-previous     : $fpCaPrevious  (signs client-previous; CA rotation / grace)
 client-current  : $fpCurrent  (CN=acme-payments, issued by ca-current)
 client-previous : $fpPrevious  (CN=acme-payments, issued by ca-previous)
+client-untrusted: $fpUntrusted  (CN=acme-payments, unknown CA — not trusted by server)
 PFX password    : $Password  (MtlsRotationClient/appsettings.json)
 "@
     Set-Content -Path (Join-Path $WorkDir "fingerprints.txt") -Value $summary -Encoding utf8

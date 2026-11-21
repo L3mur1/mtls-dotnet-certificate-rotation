@@ -13,7 +13,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 - Demo ships two client certs and two CAs (client + CA rotation / grace); expired files skipped at startup with a warning
 - Rejecting certificates missing from the allowlist or failing chain (including NotTimeValid), with warning logs
 - MVC controllers for `GET /invoices` and `GET /mtls/check` (cert claims on `User`)
-- Live HTTP tests (`MtlsRotationClient`) using current and previous client certificates (Verify snapshots)
+- Live HTTP tests (`MtlsRotationClient`): trusted current/previous (Verify), reject without cert, reject untrusted cert / unknown CA
 
 ## What this does not show
 
@@ -59,7 +59,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 | (machine) | ASP.NET development certificate — API HTTPS |
 | `MtlsRotationServer/Resources/CACerts/` | any `*.crt` trust anchors (demo: `ca-current.crt`, `ca-previous.crt`) |
 | `MtlsRotationServer/Resources/ClientCerts/` | any `*.crt` allowlist entries (demo: `client-current.crt`, `client-previous.crt`) |
-| `MtlsRotationClient/Resources/ClientCerts/` | client `*.pfx` (demo: `client-current.pfx`, `client-previous.pfx`) |
+| `MtlsRotationClient/Resources/ClientCerts/` | client `*.pfx` (demo: `client-current.pfx`, `client-previous.pfx`, `client-untrusted.pfx`) |
 
 Copied to build output (`PreserveNewest`). Apps load them from `AppContext.BaseDirectory/Resources/...`.
 
@@ -72,10 +72,11 @@ Server-side `.crt` files are **public** (public key + metadata only — no priva
 At startup, **expired** files in either folder are **skipped** with a warning. If none remain usable, the API fails fast.
 
 In this demo `client-current` is signed by `ca-current`, `client-previous` by `ca-previous`.
+`client-untrusted.pfx` uses the same CN but an unknown CA — present only on the client for a negative test (not copied to the server).
 
 Client-side `.pfx` files include the **private** key. Password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
 
-Both client certs use CN `acme-payments` (same `ClientId`).
+Trusted client certs use CN `acme-payments` (same `ClientId`).
 
 ## Project structure
 
