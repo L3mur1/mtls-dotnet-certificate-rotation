@@ -32,9 +32,9 @@ if (configuredCACert.NotAfter < DateTimeOffset.UtcNow)
 var trustedConfiguredClientCertificatesThumbprints = Directory.GetFiles(certsDir, "client-*.crt")
     .Select(X509CertificateLoader.LoadCertificateFromFile)
     .Select(c => c.Thumbprint)
-    .ToArray();
+    .ToHashSet();
 
-if (trustedConfiguredClientCertificatesThumbprints.Length == 0)
+if (trustedConfiguredClientCertificatesThumbprints.Count == 0)
 {
     throw new InvalidOperationException(
         "No trusted client certificates thumbprints were found in configuration. Run .\\scripts\\generate-certs.ps1 first " +
@@ -63,6 +63,12 @@ builder.WebHost.ConfigureKestrel(options =>
                 return false;
             }
 
+            // Validate the client certificate against whitelist of thumbprints (trusted client certs).
+            if (!trustedConfiguredClientCertificatesThumbprints.Contains(clientCertFromRequest.Thumbprint))
+            {
+                return false;
+            }
+
             // Validate the client certificate chain against the demo CA (trust anchor).
             using var chain = new X509Chain();
             chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
@@ -73,9 +79,6 @@ builder.WebHost.ConfigureKestrel(options =>
             {
                 return false;
             }
-
-            var entry = trustedConfiguredClientCertificatesThumbprints.Find(clientCertFromRequest);
-            return entry is not null && entry.NotAfter > DateTimeOffset.UtcNow;
         };
     });
 });
