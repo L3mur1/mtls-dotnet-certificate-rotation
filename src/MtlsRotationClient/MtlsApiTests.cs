@@ -1,11 +1,12 @@
+using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace MtlsRotationClient;
 
 public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTestFixture>
 {
-    private static readonly JsonSerializerOptions PrettyJson = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     [Fact]
     public async Task Api_rejects_request_without_client_certificate()
@@ -39,15 +40,19 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
 
         // Act
         using var response = await client.GetAsync("/invoices", TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadFromJsonAsync<InvoicesResponse>(JsonOptions, TestContext.Current.CancellationToken);
 
         // Assert
-        await Verify(new
-        {
-            statusCode = (int)response.StatusCode,
-            body = FormatJson(body)
-        })
-            .UseParameters(pfxFileName);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal("acme-payments", body.ClientId);
+        Assert.Equal(2, body.Invoices.Count);
+        Assert.Equal("INV-1001", body.Invoices[0].Id);
+        Assert.Equal(1200.00m, body.Invoices[0].Amount);
+        Assert.Equal("PLN", body.Invoices[0].Currency);
+        Assert.Equal("INV-1002", body.Invoices[1].Id);
+        Assert.Equal(450.50m, body.Invoices[1].Amount);
+        Assert.Equal("PLN", body.Invoices[1].Currency);
     }
 
     [Theory]
@@ -60,33 +65,19 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
 
         // Act
         using var response = await client.GetAsync("/mtls/check", TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadFromJsonAsync<MtlsCheckResponse>(JsonOptions, TestContext.Current.CancellationToken);
 
         // Assert
-        await Verify(new
-        {
-            statusCode = (int)response.StatusCode,
-            body = FormatJson(body, scrub: ["thumbprint", "notAfter"])
-        })
-            .UseParameters(pfxFileName);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal("acme-payments", body.ClientId);
+        Assert.False(string.IsNullOrWhiteSpace(body.Thumbprint));
+        Assert.True(body.NotAfter > DateTimeOffset.UtcNow);
     }
 
-    private static string FormatJson(string json, string[]? scrub = null)
-    {
-        var node = JsonNode.Parse(json)
-            ?? throw new InvalidOperationException("Response body was not valid JSON.");
+    private sealed record InvoicesResponse(string ClientId, IReadOnlyList<InvoiceDto> Invoices);
 
-        if (scrub is not null && node is JsonObject obj)
-        {
-            foreach (var name in scrub)
-            {
-                if (obj.ContainsKey(name))
-                {
-                    obj[name] = "{Scrubbed}";
-                }
-            }
-        }
+    private sealed record InvoiceDto(string Id, decimal Amount, string Currency);
 
-        return node.ToJsonString(PrettyJson);
-    }
+    private sealed record MtlsCheckResponse(string ClientId, string Thumbprint, DateTimeOffset NotAfter);
 }

@@ -13,7 +13,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 - Demo ships two client certs and two CAs (client + CA rotation / grace); expired files skipped at startup with a warning
 - Rejecting certificates missing from the allowlist or failing chain (including NotTimeValid), with warning logs
 - MVC controllers for `GET /invoices` and `GET /mtls/check` (cert claims on `User`)
-- Live HTTP tests (`MtlsRotationClient`): trusted current/previous (Verify), reject without cert, reject untrusted cert / unknown CA
+- Live HTTP tests (`MtlsRotationClient`): trusted current/previous, reject without cert, reject untrusted cert / unknown CA
 
 ## What this does not show
 
@@ -49,8 +49,6 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
    ```
 
    Or: `dotnet test --project src/MtlsRotationClient/MtlsRotationClient.csproj`
-
-   First-time / refreshed snapshots: `$env:VERIFY_AUTO=1` (requires `global.json` MTP runner).
 
 ## Certificates
 
