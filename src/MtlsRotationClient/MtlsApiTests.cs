@@ -1,24 +1,16 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
 namespace MtlsRotationClient;
 
-public sealed class MtlsApiTests : IClassFixture<MtlsTestFixture>
+public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTestFixture>
 {
-    private readonly MtlsTestFixture _fixture;
-
-    public MtlsApiTests(MtlsTestFixture fixture)
-    {
-        _fixture = fixture;
-    }
-
     [Theory]
     [InlineData("client-current.pfx")]
     [InlineData("client-previous.pfx")]
     public async Task Invoices_accepts_trusted_client_certificate(string pfxFileName)
     {
-        using var client = _fixture.CreateClient(pfxFileName);
+        using var client = fixture.CreateClient(pfxFileName);
 
         using var response = await client.GetAsync("/invoices");
         var body = await response.Content.ReadAsStringAsync();
@@ -36,7 +28,7 @@ public sealed class MtlsApiTests : IClassFixture<MtlsTestFixture>
     [InlineData("client-previous.pfx")]
     public async Task MtlsCheck_reports_client_identity(string pfxFileName)
     {
-        using var client = _fixture.CreateClient(pfxFileName);
+        using var client = fixture.CreateClient(pfxFileName);
 
         using var response = await client.GetAsync("/mtls/check");
         var body = await response.Content.ReadAsStringAsync();
@@ -55,7 +47,7 @@ public sealed class MtlsApiTests : IClassFixture<MtlsTestFixture>
         using var handler = new HttpClientHandler();
         using var client = new HttpClient(handler)
         {
-            BaseAddress = new Uri(_fixture.BaseUrl),
+            BaseAddress = new Uri(fixture.BaseUrl),
             Timeout = TimeSpan.FromSeconds(10)
         };
 
