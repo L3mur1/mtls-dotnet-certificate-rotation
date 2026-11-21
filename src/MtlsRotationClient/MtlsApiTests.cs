@@ -13,8 +13,9 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
         // Arrange
         using var client = fixture.CreateBasicClient();
 
-        // Act && Assert
-        await ThrowsTask(() => client.GetAsync("/invoices", TestContext.Current.CancellationToken));
+        // Act && Assert — exact TLS error text is OS/.NET-specific; only the failure matters.
+        await Assert.ThrowsAnyAsync<HttpRequestException>(
+            () => client.GetAsync("/invoices", TestContext.Current.CancellationToken));
     }
 
     [Theory]
