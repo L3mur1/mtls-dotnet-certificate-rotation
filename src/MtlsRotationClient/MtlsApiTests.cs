@@ -51,14 +51,14 @@ public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTe
     [Theory]
     [InlineData("acme-payments-current.pfx")]
     [InlineData("acme-payments-previous.pfx")]
-    public async Task MtlsCheck_reports_client_identity(string pfxFileName)
+    public async Task Whoami_reports_client_identity(string pfxFileName)
     {
         // Arrange
         using var expectedCert = fixture.LoadClientCertificate(pfxFileName);
         using var client = fixture.CreateMtlsClient(pfxFileName);
 
         // Act
-        using var response = await client.GetAsync("/mtls/check", TestContext.Current.CancellationToken);
+        using var response = await client.GetAsync("/whoami", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadFromJsonAsync<JsonNode>(TestContext.Current.CancellationToken);
 
         // Assert — identity and thumbprint match the public cert inside the PFX we presented.

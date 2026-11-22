@@ -6,13 +6,13 @@ namespace MtlsRotationServer.Controllers;
 
 [ApiController]
 [Authorize]
-[Route("mtls")]
-public sealed class MtlsController(ILogger<MtlsController> logger) : ControllerBase
+[Route("whoami")]
+public sealed class WhoamiController(ILogger<WhoamiController> logger) : ControllerBase
 {
     // [Authorize]: needs the authenticated principal (cert claims in User).
     // mTLS itself is already required for the whole API by Kestrel.
-    [HttpGet("check")]
-    public IActionResult Check()
+    [HttpGet]
+    public IActionResult Get()
     {
         try
         {
@@ -37,7 +37,7 @@ public sealed class MtlsController(ILogger<MtlsController> logger) : ControllerB
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("mTLS check for client {ClientId}, thumbprint {Thumbprint}", clientId, thumbprint);
+                logger.LogDebug("Returning whoami for client {ClientId}, thumbprint {Thumbprint}", clientId, thumbprint);
             }
 
             return Ok(new
@@ -51,7 +51,7 @@ public sealed class MtlsController(ILogger<MtlsController> logger) : ControllerB
         {
             if (logger.IsEnabled(LogLevel.Error))
             {
-                logger.LogError(ex, "Failed to return mTLS check response.");
+                logger.LogError(ex, "Failed to return whoami response.");
             }
 
             return StatusCode(StatusCodes.Status500InternalServerError, new

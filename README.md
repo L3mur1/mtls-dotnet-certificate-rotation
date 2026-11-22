@@ -12,7 +12,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 - Trusting any number of public client `.crt` files + any number of CA `.crt` files (thumbprint allowlist + CustomRootTrust)
 - Demo ships two client certs and two CAs (client + CA rotation / grace); expired files skipped at startup with a warning
 - Rejecting certificates missing from the allowlist or failing chain (including NotTimeValid), with warning logs
-- MVC controllers for `GET /invoices` and `GET /mtls/check` (cert claims on `User`)
+- MVC controllers for `GET /invoices` and `GET /whoami` (cert claims on `User`)
 - Live HTTP tests (`MtlsRotationClient`): trusted current/previous, reject without cert, reject untrusted cert / unknown CA
 
 ## What this does not show
