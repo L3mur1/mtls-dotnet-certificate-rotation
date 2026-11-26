@@ -59,9 +59,9 @@ builder.WebHost.ConfigureKestrel(options =>
 
         // TLS gate: thumbprint allowlist + chain → any configured CA (also enforces NotTimeValid).
         // Log each reject reason — typical enterprise practice for mTLS diagnostics / monitoring.
-        httpsOptions.ClientCertificateValidation = (certificateFromRequest, _, _) =>
+        httpsOptions.ClientCertificateValidation = (clientCertFromRequest, _, _) =>
         {
-            if (certificateFromRequest is null)
+            if (clientCertFromRequest is null)
             {
                 if (certsLogger.IsEnabled(LogLevel.Warning))
                 {
@@ -69,11 +69,6 @@ builder.WebHost.ConfigureKestrel(options =>
                 }
 
                 return false;
-            }
-
-            if (certificateFromRequest is not X509Certificate2 clientCertFromRequest)
-            {
-                clientCertFromRequest = X509CertificateLoader.LoadCertificate(certificateFromRequest.GetRawCertData());
             }
 
             // Validate the client certificate against whitelist of thumbprints (trusted client certs).
