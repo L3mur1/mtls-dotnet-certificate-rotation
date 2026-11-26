@@ -98,6 +98,7 @@ builder.WebHost.ConfigureKestrel(options =>
                 chain.ChainPolicy.CustomTrustStore.Add(ca);
             }
 
+            // No CRL/OCSP: with thumbprint pinning we revoke by removing the cert from the allowlist.
             chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
 
             if (!chain.Build(clientCertFromRequest))
@@ -125,10 +126,9 @@ builder.Services
     .AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
     .AddCertificate(options =>
     {
-        options.AllowedCertificateTypes = CertificateTypes.All;
+        // Minimal check here (chain to our CAs only) — allowlist and revoke policy already enforced in Kestrel above.
+        options.AllowedCertificateTypes = CertificateTypes.Chained;
         options.RevocationMode = X509RevocationMode.NoCheck;
-        // Handler still needs our CAs in its trust store to accept the cert when building the principal
-        // (it re-checks chain internally; the real connection gate is Kestrel above).
         options.ChainTrustValidationMode = X509ChainTrustMode.CustomRootTrust;
         foreach (var ca in configuredCACerts)
         {
@@ -191,6 +191,7 @@ static IEnumerable<X509Certificate2> LoadNonExpiredCertificates(string directory
         {
             if (logger.IsEnabled(LogLevel.Warning))
             {
+                // This will help tidying up the certificates after they are expired.
                 logger.LogWarning(
                     "Skipping expired certificate {Path} (Subject={Subject}, NotAfter={NotAfter:o})",
                     path,
