@@ -47,6 +47,10 @@ public sealed class MtlsTestFixture : IDisposable
         };
     }
 
+    public void Dispose()
+    {
+    }
+
     public X509Certificate2 LoadClientCertificate(string pfxFileName)
     {
         var pfxPath = Path.Combine(ResourcesDir, pfxFileName);
@@ -57,9 +61,5 @@ public sealed class MtlsTestFixture : IDisposable
         }
 
         return X509CertificateLoader.LoadPkcs12FromFile(pfxPath, Password);
-    }
-
-    public void Dispose()
-    {
     }
 }

@@ -1,57 +1,36 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 
 namespace MtlsRotationClient;
 
-public sealed class MtlsApiTests(MtlsTestFixture fixture) : IClassFixture<MtlsTestFixture>
+public sealed class WhoamiControllerTests(MtlsTestFixture fixture) : IClassFixture<MtlsTestFixture>
 {
     [Fact]
-    public async Task Api_rejects_request_without_client_certificate()
-    {
-        // Arrange
-        using var client = fixture.CreateBasicClient();
-
-        // Act && Assert — exact TLS error text is OS/.NET-specific; only the failure matters.
-        await Assert.ThrowsAnyAsync<HttpRequestException>(
-            () => client.GetAsync("/invoices", TestContext.Current.CancellationToken));
-    }
-
-    [Fact]
-    public async Task Api_rejects_client_certificate_from_unknown_ca()
+    public async Task GetWhoami_WhenClientCertificateFromUnknownCa_ShouldRejectConnection()
     {
         // Arrange — same CN as trusted clients, but issued by an unknown CA and not on the allowlist.
         using var client = fixture.CreateMtlsClient("acme-payments-unknown-ca.pfx");
 
         // Act && Assert — rejected at TLS (thumbprint / chain), before HTTP.
         await Assert.ThrowsAnyAsync<HttpRequestException>(
-            () => client.GetAsync("/invoices", TestContext.Current.CancellationToken));
+            () => client.GetAsync("/whoami", TestContext.Current.CancellationToken));
     }
 
-    [Theory]
-    [InlineData("acme-payments-current.pfx")]
-    [InlineData("acme-payments-previous.pfx")]
-    public async Task Invoices_accepts_trusted_client_certificate(string pfxFileName)
+    [Fact]
+    public async Task GetWhoami_WhenClientCertificateMissing_ShouldRejectConnection()
     {
         // Arrange
-        using var client = fixture.CreateMtlsClient(pfxFileName);
+        using var client = fixture.CreateBasicClient();
 
-        // Act
-        using var response = await client.GetAsync("/invoices", TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadFromJsonAsync<JsonNode>(TestContext.Current.CancellationToken);
-
-        // Assert — mTLS + identity; invoice payload is demo data, not under test.
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(body);
-
-        Assert.Equal("acme-payments", (string?)body["clientId"]);
-        Assert.True(body["invoices"] is JsonArray { Count: > 0 });
+        // Act && Assert — exact TLS error text is OS/.NET-specific; only the failure matters.
+        await Assert.ThrowsAnyAsync<HttpRequestException>(
+            () => client.GetAsync("/whoami", TestContext.Current.CancellationToken));
     }
 
     [Theory]
     [InlineData("acme-payments-current.pfx")]
     [InlineData("acme-payments-previous.pfx")]
-    public async Task Whoami_reports_client_identity(string pfxFileName)
+    public async Task GetWhoami_WhenClientIsTrusted_ShouldReturnClientIdentity(string pfxFileName)
     {
         // Arrange
         using var expectedCert = fixture.LoadClientCertificate(pfxFileName);
