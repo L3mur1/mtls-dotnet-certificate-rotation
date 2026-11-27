@@ -14,40 +14,24 @@ public sealed class InvoicesController(ILogger<InvoicesController> logger) : Con
     [HttpGet]
     public IActionResult Get()
     {
-        try
+        var clientId = User.FindFirstValue("client_id")
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new InvalidOperationException(
+                "Authenticated principal is missing client_id (expected from certificate authentication).");
+
+        if (logger.IsEnabled(LogLevel.Debug))
         {
-            var clientId = User.FindFirstValue("client_id")
-                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? throw new InvalidOperationException(
-                    "Authenticated principal is missing client_id (expected from certificate authentication).");
-
-            if (logger.IsEnabled(LogLevel.Debug))
-            {
-                logger.LogDebug("Returning invoices for client {ClientId}", clientId);
-            }
-
-            return Ok(new
-            {
-                clientId,
-                invoices = new[]
-                {
-                    new { id = "INV-1001", amount = 1200.00m, currency = "PLN" },
-                    new { id = "INV-1002", amount = 450.50m, currency = "PLN" }
-                }
-            });
+            logger.LogDebug("Returning invoices for client {ClientId}", clientId);
         }
-        catch (Exception ex)
+
+        return Ok(new
         {
-            if (logger.IsEnabled(LogLevel.Error))
+            clientId,
+            invoices = new[]
             {
-                logger.LogError(ex, "Failed to return invoices.");
+                new { id = "INV-1001", amount = 1200.00m, currency = "PLN" },
+                new { id = "INV-1002", amount = 450.50m, currency = "PLN" }
             }
-
-            return StatusCode(StatusCodes.Status500InternalServerError, new
-            {
-                error = "server_fault",
-                message = "An unexpected error occurred."
-            });
-        }
+        });
     }
 }

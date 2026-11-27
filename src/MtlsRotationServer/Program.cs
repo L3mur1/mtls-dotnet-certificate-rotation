@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using MtlsRotationServer.ExceptionHandling;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 
@@ -7,6 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Host DI logging (ILogger<T> in controllers, etc.) comes from WebApplication.CreateBuilder.
 builder.Services.AddControllers();
+builder.Services.AddExceptionHandler<UnhandledExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // Extra logger for startup cert loading + Kestrel ClientCertificateValidation.
 // The TLS callback runs before the HTTP pipeline / request DI scope exist.
@@ -164,6 +167,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
 
