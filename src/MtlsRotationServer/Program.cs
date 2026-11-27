@@ -188,7 +188,9 @@ static IEnumerable<X509Certificate2> LoadNonExpiredCertificates(string directory
     foreach (var path in Directory.GetFiles(directory, "*.crt"))
     {
         var certificate = X509CertificateLoader.LoadCertificateFromFile(path);
-        if (certificate.NotAfter <= DateTime.UtcNow)
+        // NotAfter is local time in .NET — compare in UTC.
+        var notAfterUtc = certificate.NotAfter.ToUniversalTime();
+        if (notAfterUtc <= DateTime.UtcNow)
         {
             if (logger.IsEnabled(LogLevel.Warning))
             {
@@ -197,13 +199,13 @@ static IEnumerable<X509Certificate2> LoadNonExpiredCertificates(string directory
                     "Skipping expired certificate {Path} (Subject={Subject}, NotAfter={NotAfter:o})",
                     path,
                     certificate.Subject,
-                    certificate.NotAfter);
+                    notAfterUtc);
             }
 
             continue;
         }
 
-        if (certificate.NotAfter <= DateTime.UtcNow.AddDays(NearExpiryWarningDays)
+        if (notAfterUtc <= DateTime.UtcNow.AddDays(NearExpiryWarningDays)
             && logger.IsEnabled(LogLevel.Warning))
         {
             logger.LogWarning(
@@ -211,7 +213,7 @@ static IEnumerable<X509Certificate2> LoadNonExpiredCertificates(string directory
                 NearExpiryWarningDays,
                 path,
                 certificate.Subject,
-                certificate.NotAfter);
+                notAfterUtc);
         }
 
         yield return certificate;
