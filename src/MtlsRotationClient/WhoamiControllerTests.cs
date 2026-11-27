@@ -27,6 +27,17 @@ public sealed class WhoamiControllerTests(MtlsTestFixture fixture) : IClassFixtu
             () => client.GetAsync("/whoami", TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task GetWhoami_WhenClientCertificateNotOnAllowlist_ShouldRejectConnection()
+    {
+        // Arrange — trusted CA (ca-current), same CN, but thumbprint is not on the server allowlist.
+        using var client = fixture.CreateMtlsClient("acme-payments-unlisted.pfx");
+
+        // Act && Assert — rejected at TLS (allowlist), before HTTP.
+        await Assert.ThrowsAnyAsync<HttpRequestException>(
+            () => client.GetAsync("/whoami", TestContext.Current.CancellationToken));
+    }
+
     [Theory]
     [InlineData("acme-payments-current.pfx")]
     [InlineData("acme-payments-previous.pfx")]

@@ -57,7 +57,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 | (machine) | ASP.NET development certificate — API HTTPS |
 | `MtlsRotationServer/Resources/CACerts/` | any `*.crt` trust anchors (demo: `ca-current.crt`, `ca-previous.crt`) |
 | `MtlsRotationServer/Resources/ClientCerts/` | any `*.crt` allowlist entries (demo: `acme-payments-current.crt`, `acme-payments-previous.crt`) |
-| `MtlsRotationClient/Resources/ClientCerts/` | client `*.pfx` (demo: `acme-payments-current.pfx`, `acme-payments-previous.pfx`, `acme-payments-unknown-ca.pfx`) |
+| `MtlsRotationClient/Resources/ClientCerts/` | client `*.pfx` (demo: `acme-payments-current.pfx`, `acme-payments-previous.pfx`, `acme-payments-unknown-ca.pfx`, `acme-payments-unlisted.pfx`) |
 
 Copied to build output (`PreserveNewest`). Apps load them from `AppContext.BaseDirectory/Resources/...`.
 
@@ -70,7 +70,9 @@ Server-side `.crt` files are **public** (public key + metadata only — no priva
 At startup, **expired** files in either folder are **skipped** with a warning. If none remain usable, the API fails fast.
 
 In this demo `acme-payments-current` is signed by `ca-current`, `acme-payments-previous` by `ca-previous`.
-`acme-payments-unknown-ca.pfx` uses the same CN but an unknown CA — present only on the client for a negative test (not copied to the server).
+Negative-test PFX files are present only on the client (not copied to the server allowlist):
+- `acme-payments-unknown-ca.pfx` — same CN, unknown CA (pin + chain fail)
+- `acme-payments-unlisted.pfx` — same CN, trusted `ca-current`, but thumbprint not on the allowlist (pin alone fails)
 
 Client-side `.pfx` files include the **private** key. Password: `MtlsRotationClient/appsettings.json` → `ClientCertificate:Password`.
 

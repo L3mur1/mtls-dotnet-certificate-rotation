@@ -83,6 +83,9 @@ try {
     New-Ca -Name "ca-unknown" -Days $DaysCurrent -CommonName "mTLS Demo CA (unknown)"
     New-ClientCert -Name "acme-payments-unknown-ca" -Days $DaysCurrent -CommonName "acme-payments" -CaName "ca-unknown"
 
+    # Same CN, trusted CA, but not on allowlist — PFX only on client (negative test: pin alone fails).
+    New-ClientCert -Name "acme-payments-unlisted" -Days $DaysCurrent -CommonName "acme-payments" -CaName "ca-current"
+
     function Get-Fingerprint {
         param([string]$CertPath)
         $line = openssl x509 -in $CertPath -noout -fingerprint -sha256
@@ -92,6 +95,7 @@ try {
     $fpCurrent = Get-Fingerprint acme-payments-current.crt
     $fpPrevious = Get-Fingerprint acme-payments-previous.crt
     $fpUnknownCa = Get-Fingerprint acme-payments-unknown-ca.crt
+    $fpUnlisted = Get-Fingerprint acme-payments-unlisted.crt
     $fpCaCurrent = Get-Fingerprint ca-current.crt
     $fpCaPrevious = Get-Fingerprint ca-previous.crt
 
@@ -100,18 +104,19 @@ try {
     Copy-Item acme-payments-current.crt, acme-payments-previous.crt -Destination $ServerClientCerts
 
     Write-Host "Copying client Resources..."
-    Copy-Item acme-payments-current.pfx, acme-payments-previous.pfx, acme-payments-unknown-ca.pfx -Destination $ClientClientCerts
+    Copy-Item acme-payments-current.pfx, acme-payments-previous.pfx, acme-payments-unknown-ca.pfx, acme-payments-unlisted.pfx -Destination $ClientClientCerts
 
     $summary = @"
 HTTPS           : ASP.NET development certificate (dotnet dev-certs https --trust)
 server Resources/CACerts     : ca-current.crt, ca-previous.crt
 server Resources/ClientCerts : acme-payments-current.crt, acme-payments-previous.crt
-client Resources/ClientCerts : acme-payments-current.pfx, acme-payments-previous.pfx, acme-payments-unknown-ca.pfx
-ca-current               : $fpCaCurrent  (signs acme-payments-current)
+client Resources/ClientCerts : acme-payments-current.pfx, acme-payments-previous.pfx, acme-payments-unknown-ca.pfx, acme-payments-unlisted.pfx
+ca-current               : $fpCaCurrent  (signs acme-payments-current and acme-payments-unlisted)
 ca-previous              : $fpCaPrevious  (signs acme-payments-previous; CA rotation / grace)
 acme-payments-current    : $fpCurrent  (CN=acme-payments, issued by ca-current)
 acme-payments-previous   : $fpPrevious  (CN=acme-payments, issued by ca-previous)
 acme-payments-unknown-ca : $fpUnknownCa  (CN=acme-payments, unknown CA — not trusted by server)
+acme-payments-unlisted   : $fpUnlisted  (CN=acme-payments, issued by ca-current — not on allowlist)
 PFX password             : $Password  (MtlsRotationClient/appsettings.json)
 "@
     Set-Content -Path (Join-Path $WorkDir "fingerprints.txt") -Value $summary -Encoding utf8
