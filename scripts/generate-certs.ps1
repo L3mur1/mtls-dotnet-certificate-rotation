@@ -10,7 +10,7 @@ $ClientClientCerts = Join-Path $ClientDir "Resources\ClientCerts"
 $WorkDir = Join-Path $RootDir "artifacts\cert-build"
 $Password = "changeit"
 $DaysCurrent = 825
-$DaysPrevious = 400
+$DaysPrevious = 20
 
 if (-not (Get-Command openssl -ErrorAction SilentlyContinue)) {
     Write-Error "OpenSSL is required and must be on PATH."

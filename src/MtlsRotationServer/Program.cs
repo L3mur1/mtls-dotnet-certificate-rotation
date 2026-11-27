@@ -177,6 +177,8 @@ app.Run();
 
 static IEnumerable<X509Certificate2> LoadNonExpiredCertificates(string directory, ILogger logger)
 {
+    const int NearExpiryWarningDays = 30;
+
     if (!Directory.Exists(directory))
     {
         throw new InvalidOperationException(
@@ -199,6 +201,17 @@ static IEnumerable<X509Certificate2> LoadNonExpiredCertificates(string directory
             }
 
             continue;
+        }
+
+        if (certificate.NotAfter <= DateTime.UtcNow.AddDays(NearExpiryWarningDays)
+            && logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning(
+                "Certificate expires within {NearExpiryWarningDays} days: {Path} (Subject={Subject}, NotAfter={NotAfter:o})",
+                NearExpiryWarningDays,
+                path,
+                certificate.Subject,
+                certificate.NotAfter);
         }
 
         yield return certificate;

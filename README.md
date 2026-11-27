@@ -10,7 +10,7 @@ Article (PL): [mTLS w .NET – Jak świadomie potwierdzać tożsamość klienta 
 - HTTPS with the ASP.NET / Visual Studio development certificate
 - Requiring a client certificate in Kestrel
 - Trusting any number of public client `.crt` files + any number of CA `.crt` files (thumbprint allowlist + CustomRootTrust)
-- Demo ships two client certs and two CAs (client + CA rotation / grace); expired files skipped at startup with a warning
+- Demo ships two client certs and two CAs (client + CA rotation / grace); expired files skipped at startup; certs expiring within 30 days log a near-expiry warning but remain trusted
 - Rejecting certificates missing from the allowlist or failing chain (including NotTimeValid), with warning logs
 - MVC controllers for `GET /invoices` and `GET /whoami` (cert claims on `User`)
 - Live HTTP tests (`MtlsRotationClient`): trusted current/previous, reject without cert, reject untrusted cert / unknown CA
@@ -67,9 +67,9 @@ Server-side `.crt` files are **public** (public key + metadata only — no priva
 - `CACerts/*.crt` — trust anchors (`CustomRootTrust`); chain may end at **any** configured CA. Any count (demo uses two for CA rotation). Project choice.
 - `ClientCerts/*.crt` — allowlist by thumbprint. Any count (demo uses two for client cert rotation).
 
-At startup, **expired** files in either folder are **skipped** with a warning. If none remain usable, the API fails fast.
+At startup, **expired** files in either folder are **skipped** with a warning. Certs that expire within **30 days** stay in use but log a **near-expiry** warning. If none remain usable, the API fails fast.
 
-In this demo `acme-payments-current` is signed by `ca-current`, `acme-payments-previous` by `ca-previous`.
+In this demo `acme-payments-current` is signed by `ca-current`, `acme-payments-previous` by `ca-previous`. The previous client cert (and `ca-previous`) are issued for **20 days** so startup shows the near-expiry warning.
 Negative-test PFX files are present only on the client (not copied to the server allowlist):
 - `acme-payments-unknown-ca.pfx` — same CN, unknown CA (pin + chain fail)
 - `acme-payments-unlisted.pfx` — same CN, trusted `ca-current`, but thumbprint not on the allowlist (pin alone fails)
